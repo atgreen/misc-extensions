@@ -317,6 +317,9 @@ second value is `body' with the declarations stripped off."
 		    simple-string simple-vector single-float standard-char stream
 		    string base-char symbol t vector))
 	#+abcl (get x 'system::deftype-definition)
+        ;; EGCL's TYPEP accepts unknown types, so consult its DEFTYPE registry
+        ;; rather than selecting the error-based branch above.
+        #+egcl (assoc x cl::*type-expanders*)
 	(find-class x nil))))
 
 

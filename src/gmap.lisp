@@ -269,6 +269,21 @@ an arg type expander (see `def-gmap-arg-type')."
 	      (kind condition) (name condition) (kind condition)
 	      (if (eq (kind condition) ':res) "result" "arg")))))
 
+#+egcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun egcl-expander-name (kind name)
+    ;; Counter-based GENSYMs collide when separately compiled files are loaded
+    ;; together. The defining type symbol and kind give a stable identity.
+    (unless (symbol-package name)
+      (error "EGCL GMAP type names must be interned symbols: ~S" name))
+    (cl:let ((package-name (package-name (symbol-package name)))
+             (symbol-name (symbol-name name)))
+      (intern (format nil "~A/~D:~A/~D:~A" kind
+                      (length package-name) package-name
+                      (length symbol-name) symbol-name)
+              (or (find-package :misc-extensions.egcl-expanders)
+                  (make-package :misc-extensions.egcl-expanders :use nil))))))
+
 (defmacro def-gmap-arg-type (name args &body body)
   "Defines a GMap arg-type.  Syntax is identical to `defun'.  The body should
 return a list of 1 to 5 elements: (0, \"init\") the initial value of the
@@ -300,8 +315,9 @@ old syntax `(:name ...)' to the new syntax `(:arg name ...)'."
 		       (intern (symbol-name name) (find-package "KEYWORD")))))
     (unless kwd-name
       (warn 'keyword-name-deprecated :kind ':arg :name name))
-    ;; CLISP doesn't seem to preserve EQ-ness on fasl-dumped uninterned symbols.
+    ;; CLISP needs interned names for generated functions across FASLs.
     #+clisp (setq fn-name (intern (symbol-name fn-name) :gmap))
+    #+egcl (setq fn-name (egcl-expander-name "ARG" name))
     (let ((doc-string body
 	    (if (stringp (car body)) (values (car body) (cdr body))
 	      (values nil body))))
@@ -352,8 +368,9 @@ being mapped."
 	     wish to iterate over.  If you need to define the keyword name for~@
 	     backward compatibility, use `def-gmap-arg-type'."
 	    name))
-    ;; CLISP doesn't seem to preserve EQ-ness on fasl-dumped uninterned symbols.
+    ;; CLISP needs interned names for generated functions across FASLs.
     #+clisp (setq fn-name (intern (symbol-name fn-name) :gmap))
+    #+egcl (setq fn-name (egcl-expander-name "ARG" name))
     (let ((doc-string body
 	    (if (stringp (car body)) (values (car body) (cdr body))
 	      (values nil body))))
@@ -399,8 +416,9 @@ old syntax `(:name ...)' to the new syntax `(:result name ...)'."
 		       (intern (symbol-name name) (find-package "KEYWORD")))))
     (unless kwd-name
       (warn 'keyword-name-deprecated :kind ':res :name name))
-    ;; CLISP doesn't seem to preserve EQ-ness on fasl-dumped uninterned symbols.
+    ;; CLISP needs interned names for generated functions across FASLs.
     #+clisp (setq fn-name (intern (symbol-name fn-name) :gmap))
+    #+egcl (setq fn-name (egcl-expander-name "RES" name))
     (let ((doc-string body
 	    (if (stringp (car body)) (values (car body) (cdr body))
 	      (values nil body))))
@@ -451,8 +469,9 @@ from the function being mapped."
 	     wish to iterate over.  If you need to define the keyword name for~@
 	     backward compatibility, use `def-gmap-res-type'."
 	    name))
-    ;; CLISP doesn't seem to preserve EQ-ness on fasl-dumped uninterned symbols.
+    ;; CLISP needs interned names for generated functions across FASLs.
     #+clisp (setq fn-name (intern (symbol-name fn-name) :gmap))
+    #+egcl (setq fn-name (egcl-expander-name "RES" name))
     (let ((doc-string body
 	    (if (stringp (car body)) (values (car body) (cdr body))
 	      (values nil body))))
